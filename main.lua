@@ -1,18 +1,18 @@
 display.setStatusBar(display.HiddenStatusBar)
---
+
 --require classes
-local Seedbox = require 'seedbox'
-local Seed = require 'seed'
-local Tree =    require 'tree'
-local Welcome = require 'welcome'
-local Meteor = require 'meteor'
+local Seedbox = require 'lib/seedbox'
+local Seed = require 'lib/seed'
+local Tree =    require 'lib/tree'
+local Welcome = require 'lib/welcome'
+local Meteor = require 'lib/meteor'
 
 --set up groups - make these all globals (not locals) so our other classes can get at them
 fullScreen = display.newGroup()
 
 playArea = display.newGroup()
 fullScreen:insert(playArea)
-background = display.newImage(playArea, 'Background.png')
+background = display.newImage(playArea, 'graphics/background.png')
 
 trees = display.newGroup()
 playArea:insert(trees)
@@ -45,20 +45,21 @@ sfxTreeDamaged = audio.loadStream("sounds/tree_damaged_v2.wav")
 sfxTreeDestroyed = audio.loadStream("sounds/tree_destroyed_v2.wav")
 sfxMeteorExplosion = audio.loadStream("sounds/game_over_short.wav")
 sfxAirRaid = audio.loadStream("sounds/air_raid.mp3")
-sfxBgm = audio.loadStream("sounds/gameplay_mastered.wav")
-sfxTitleBgm = audio.loadStream("sounds/title_mastered.wav")
+sfxBgm = audio.loadStream("sounds/gameplay_mastered.mp3")
+sfxTitleBgm = audio.loadStream("sounds/title_mastered.mp3")
 sfxGameStart = audio.loadStream("sounds/start.wav")
 
---even more globals
+--even more globals for some misc stuff
 groundY = 435
 gameEvent = ""
-bgmChannel = audio.play(sfxTitleBgm, {loops = -1})
+bgmChannel = ""
 airRaidChannel = ""
 startTime = os.time()
---meteorTimer = ""
+
 local gameOverScreen
 
 function setupGame()
+  Runtime:removeEventListener('touch', setupGame) 
   for i = meteors.numChildren, 1, -1 do
     meteors[i]:removeSelf()
   end
@@ -78,15 +79,23 @@ function setupGame()
     meteorExplosions[i]:removeSelf()
   end   
   Meteor:setup() 
-  Welcome:displayWelcome()
-  audio.stop(airRaidChannel)
-end
+  startGame()
+end 
 
-local function Main()
---wait for tap before starting
-  print("Main")
-  setupGame()
-end   
+function startGame()
+  print("startGame")
+  Welcome:removeWelcome()
+  Seedbox:makeSeedBoxes()
+  Tree:makeStartTrees()
+  Runtime:addEventListener('enterFrame', update)
+  Meteor:setup()
+  gameStartChannel = audio.play(gameStart) 
+  audio.stop(airRaidChannel)   
+  audio.stop(bgmChannel)
+  bgmChannel = audio.play(sfxBgm, {loops = -1})
+  audio.play(sfxGameStart)  
+  startTime = os.time()    
+end
 
 --stuff we want to happen automatically on every frame
 function update(e)
@@ -101,7 +110,6 @@ function update(e)
 end
 
 function drag(event)
-  --print("in main:drag, event.x = " .. event.x .. ", event.y = " .. event.y)
   seed = event.target
   seed:drag(event)
 end
@@ -124,6 +132,7 @@ function onCollision(e)
 end
 
 function alert(text)
+  print("alert")
   titleTF = display.newText(text, 0, 0, native.systemFontBold, 30)
   titleTF:setTextColor(254,50,50)
   titleTF:setReferencePoint(display.CenterReferencePoint)
@@ -137,10 +146,13 @@ end
 function showGameOverScreen()
   print("showGameOverScreen()")
   gameOverScreen = display.newGroup()
-  display.newImage(gameOverScreen, "game_over.png", 0, 0)
+  display.newImage(gameOverScreen, "graphics/game_over.png", 0, 0)
   local survivalTime = math.abs(os.difftime(os.time(), startTime))
-  local score = display.newText("You protected the earth for " .. survivalTime .. " seconds" , 10, 10, native.systemFontBold, 10)
-  gameOverScreen:insert(score)
+  local score1 = display.newText("You protected the earth for", 50, 420, "Impact", 20)
+  local score2 = display.newText(survivalTime .. " seconds" , 90, 440, "Impact", 30)
+  
+  gameOverScreen:insert(score1)
+  gameOverScreen:insert(score2)
   Runtime:addEventListener('touch', hideGameOverScreen)  
 end
 
@@ -148,21 +160,13 @@ function hideGameOverScreen()
   print("hideGameOverScreen()")
   gameOverScreen:removeSelf()
   Runtime:removeEventListener('touch', hideGameOverScreen)
-  setupGame()
+  Welcome:displayWelcome()
 end
 
-function startGame()
-  print("startGame")
-  Welcome:removeWelcome()
-  Seedbox:makeSeedBoxes()
-  Tree:makeStartTrees()
-  Runtime:addEventListener('enterFrame', update)
-  Meteor:setup()
-  gameStartChannel = audio.play(gameStart)  
-  audio.stop(bgmChannel)
-  bgmChannel = audio.play(sfxBgm, {loops = -1})
-  audio.play(sfxGameStart)  
-  startTime = os.time()    
-end
+local function Main()
+--wait for tap before starting
+  print("Main")
+  Welcome:displayWelcome()
+end  
 
 Main()        
